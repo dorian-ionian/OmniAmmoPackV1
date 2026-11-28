@@ -3,18 +3,37 @@ class OmniAmmoPickup extends Pickup;
 // Share of each weapon's MaxAmmo that one pickup gives, per fire mode.
 var() float AmmoFraction;
 
-// Tops up every weapon the pawn carries. Returns true if any ammo was added.
+// Tops up every ammo type the pawn carries. Returns true if any ammo was added.
+// Ammo is read from the pawn's Ammunition inventory, so weapons with several
+// ammo types (e.g. ChaosUT cgl) are covered without referencing their package.
+// Weapons that keep ammo in AmmoCharge (bNoAmmoInstances) have no Ammunition item,
+// so they are topped up through their fire modes.
 function bool GiveOmniAmmo(Pawn P)
 {
 	local Inventory Inv;
+	local Ammunition A;
 	local Weapon W;
-	local int Mode, Amount;
+	local int Mode, Amount, Before;
 	local bool bGave;
 
 	for (Inv = P.Inventory; Inv != None; Inv = Inv.Inventory)
 	{
+		A = Ammunition(Inv);
+		if (A != None)
+		{
+			if (A.AmmoAmount >= A.MaxAmmo)
+				continue;
+
+			Amount = Max(1, int(float(A.MaxAmmo) * AmmoFraction));
+			Before = A.AmmoAmount;
+			A.AddAmmo(Amount);
+			if (A.AmmoAmount > Before)
+				bGave = true;
+			continue;
+		}
+
 		W = Weapon(Inv);
-		if (W == None)
+		if (W == None || !W.bNoAmmoInstances)
 			continue;
 
 		for (Mode = 0; Mode < 2; Mode++)
